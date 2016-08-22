@@ -4,5 +4,6 @@ name = "shady"
 version = "0.1.0"
 
 [dependencies]
+shady-script = { path = "shady-script" }
 glium = "0.15.0"
 notify = "2.6.3"

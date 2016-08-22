@@ -1,0 +1,11 @@
+[package]
+authors = ["Samuel Sleight <samuel.sleight@gmail.com>"]
+build = "build.rs"
+name = "shady-script"
+version = "0.1.0"
+
+[build-dependencies]
+lalrpop = "0.12.0"
+
+[dependencies]
+lalrpop-util = "0.12.0"

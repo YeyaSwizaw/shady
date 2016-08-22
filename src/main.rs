@@ -1,5 +1,6 @@
 #[macro_use] extern crate glium;
 extern crate notify;
+extern crate shady_script;
 
 use std::fs::File;
 use std::path::Path;
@@ -19,6 +20,9 @@ struct Vertex {
 }
 
 implement_vertex!(Vertex, v_xy, v_uv);
+
+#[derive(Debug, Clone)]
+pub struct ImageSource(String);
 
 static vertex_shader_source: &'static str = r#"
     #version 330 core
@@ -41,18 +45,21 @@ enum CompileError {
 }
 
 fn try_compile_program<P: AsRef<Path>>(display: &GlutinFacade, path: P) -> Result<Program, CompileError> {
-    let mut fragment_shader_source = String::new();
+    let mut fragment_shader_script = String::new();
 
-    if let Err(err) = File::open(path).and_then(|mut file| file.read_to_string(&mut fragment_shader_source)) {
+    if let Err(err) = File::open(path).and_then(|mut file| file.read_to_string(&mut fragment_shader_script)) {
         return Err(CompileError::IO(err))
     }
+
+    let fragment_shader_source = &shady_script::parse(&fragment_shader_script).generate_fragment_shader();
+    println!("{}", fragment_shader_source);
 
     glium::Program::from_source(display, vertex_shader_source, &fragment_shader_source, None)
         .map_err(|err| CompileError::Glium(err))
 }
 
 fn main() {
-    let path = Path::new("shader.glsl");
+    let path = Path::new("script.shy");
 
     let display = glium::glutin::WindowBuilder::new()
         .with_title("Shady")
