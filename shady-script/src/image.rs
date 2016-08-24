@@ -1,17 +1,17 @@
-use ::ast;
-use std::fmt::{Display, Formatter, Error};
+use std::fmt;
 
-#[derive(Debug, Eq, PartialEq)]
-pub struct ImageDefinition(pub ast::Block);
+use ::{ast, instr};
 
-impl ImageDefinition {
-    pub fn generate_shader_function(&self) -> String {
-        format!("vec3 image(float x, float y) {{\n{}\n}}", self.0)
+pub struct Image<'a>(&'a ::Shady, usize);
+
+impl<'a> Image<'a> {
+    pub fn new(shady: &'a ::Shady, idx: usize) -> Image<'a> {
+        Image(shady, idx)
     }
 
-    pub fn generate_fragment_shader(&self) -> String {
+    pub fn standalone_shader(&self) -> String {
         format!(
-r#"#version 330 core
+            r#"#version 330 core
 
 in vec2 uv;
 
@@ -21,50 +21,43 @@ out vec3 colour;
 
 void main() {{
     colour = image(uv.x, uv.y);
-}}"#,
-            self.generate_shader_function()
+}}"#, 
+            self.0.get(self.1).shader_function()
         )
     }
 }
 
-impl Display for ast::Block {
-    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
-        for stmt in &self.0 {
-            try!(write!(f, "{};", stmt));
+impl instr::Item {
+    fn shader_function(&self) -> String {
+        format!("vec3 image(float x, float y) {{\n {}}}", self.instrs)
+    }
+}
+
+impl fmt::Display for instr::Block {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        for inst in self.0.iter().rev() {
+            try!(write!(f, "    {};\n", inst))
         }
 
         Ok(())
     }
 }
 
-impl Display for ast::Stmt {
-    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+impl fmt::Display for instr::Instr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match self {
-            &ast::Stmt::Return(ref expr) => write!(f, "    return {}", expr)
+            &instr::Instr::Return(ref expr) => write!(f, "return {}", expr)
         }
     }
 }
 
-impl Display for ast::Expr {
-    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+impl fmt::Display for ast::Expr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match self {
             &ast::Expr::Literal(ref s) => write!(f, "{}", s),
-            &ast::Expr::Vec2(ref exprs) => write!(f, "vec2({}, {})", exprs[0], exprs[1]),
-            &ast::Expr::Vec3(ref exprs) => write!(f, "vec3({}, {}, {})", exprs[0], exprs[1], exprs[2])
+            &ast::Expr::Vec2(ref exprs) => write!(f, "vec2({}, {})", exprs.0, exprs.1),
+            &ast::Expr::Vec3(ref exprs) => write!(f, "vec3({}, {}, {})", exprs.0, exprs.1, exprs.2),
         }
     }
 }
 
-#[test]
-fn test_image_def() {
-    let src = r#"
-        image() {
-            return (12, 23, 34)
-        }
-    "#;
-
-    assert_eq!(::grammar::parse_ImageDefinition(src).unwrap().generate_shader_function(),
-r#"vec3 image(float x, float y) {
-    return vec3(12, 23, 34);
-}"#);
-}

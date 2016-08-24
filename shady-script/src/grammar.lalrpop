@@ -1,9 +1,12 @@
 use ::ast;
-use ::image::ImageDefinition;
 
 grammar;
 
-pub ImageDefinition: ImageDefinition = "image()" <Block> => ImageDefinition(<>);
+pub AST: ast::AST = <Item*> => ast::AST(<>);
+
+pub Item: ast::Item = {
+    "image()" <Block> => ast::image(<>)
+};
 
 pub Block: ast::Block = "{" <Stmt*> "}" => ast::Block(<>);
 
