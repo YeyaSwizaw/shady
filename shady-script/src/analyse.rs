@@ -1,33 +1,40 @@
 use ast;
 use instr;
+use span::Span;
+
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub enum AnalyseError {
+    IncorrectReturnType(Span),
+    IncorrectTupleTypes(Span),
+}
 
 impl ast::AST {
-    pub fn analyse(&self) -> ::Shady {
+    pub fn analyse(&self) -> Result<::Shady, AnalyseError> {
         let mut shady = ::Shady::new();
 
         for item in &self.0 {
-            shady.push_item(item.analyse());
+            shady.push_item(try!(item.data.analyse()));
         }
 
-        shady
+        Ok(shady)
     }
 }
 
 impl ast::Item {
-    pub fn analyse(&self) -> instr::Item {
+    pub fn analyse(&self) -> Result<instr::Item, AnalyseError> {
         let mut item = instr::Item::new(self.item);
 
-        for stmt in &self.block.0 {
-            match stmt {
-                &ast::Stmt::Return(ref expr) => if item.expr_type(expr) == item.ret {
-                    item.push_instr(instr::ret(expr.clone()));
+        for stmt in &self.block.data.0 {
+            match &stmt.data {
+                &ast::Stmt::Return(ref expr) => if try!(item.expr_type(&expr.data)) == item.ret {
+                    item.push_instr(instr::ret(expr.data.clone()));
                 } else {
-                    panic!("Expected return type")
+                    return Err(AnalyseError::IncorrectReturnType(stmt.span));
                 }
             }
         }
 
-        item
+        Ok(item)
     }
 }
 
@@ -42,25 +49,27 @@ impl instr::Item {
         }
     }
 
-    fn expr_type(&self, expr: &ast::Expr) -> instr::Type {
+    fn expr_type(&self, expr: &ast::Expr) -> Result<instr::Type, AnalyseError> {
         match expr {
-            &ast::Expr::Literal(_) => instr::Type::Float,
+            &ast::Expr::Literal(_) => Ok(instr::Type::Float),
+
+            &ast::Expr::Var(_) => Ok(instr::Type::Float),
 
             &ast::Expr::Vec2(ref exprs) => {
-                let ty = self.expr_type(&exprs.0);
-                if self.expr_type(&exprs.1) == ty {
-                    instr::Type::Vec2
+                let ty = try!(self.expr_type(&exprs.0.data));
+                if try!(self.expr_type(&exprs.1.data)) == ty {
+                    Ok(instr::Type::Vec2)
                 } else {
-                    panic!("Tuple must be same type")
+                    Err(AnalyseError::IncorrectTupleTypes(Span { begin: exprs.0.span.begin, end: exprs.1.span.end }))
                 }
             },
 
             &ast::Expr::Vec3(ref exprs) => {
-                let ty = self.expr_type(&exprs.0);
-                if self.expr_type(&exprs.1) == ty && self.expr_type(&exprs.2) == ty {
-                    instr::Type::Vec3
+                let ty = try!(self.expr_type(&exprs.0.data));
+                if try!(self.expr_type(&exprs.1.data)) == ty && try!(self.expr_type(&exprs.2.data)) == ty {
+                    Ok(instr::Type::Vec3)
                 } else {
-                    panic!("Tuple must be same type")
+                    Err(AnalyseError::IncorrectTupleTypes(Span { begin: exprs.0.span.begin, end: exprs.2.span.end }))
                 }
             },
         }

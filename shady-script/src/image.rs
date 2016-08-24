@@ -55,8 +55,9 @@ impl fmt::Display for ast::Expr {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match self {
             &ast::Expr::Literal(ref s) => write!(f, "{}", s),
-            &ast::Expr::Vec2(ref exprs) => write!(f, "vec2({}, {})", exprs.0, exprs.1),
-            &ast::Expr::Vec3(ref exprs) => write!(f, "vec3({}, {}, {})", exprs.0, exprs.1, exprs.2),
+            &ast::Expr::Var(ref s) => write!(f, "{}", s),
+            &ast::Expr::Vec2(ref exprs) => write!(f, "vec2({}, {})", exprs.0.data, exprs.1.data),
+            &ast::Expr::Vec3(ref exprs) => write!(f, "vec3({}, {}, {})", exprs.0.data, exprs.1.data, exprs.2.data),
         }
     }
 }

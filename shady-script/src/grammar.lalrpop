@@ -1,21 +1,26 @@
 use ::ast;
+use ::span;
 
 grammar;
 
-pub AST: ast::AST = <Item*> => ast::AST(<>);
+pub AST: ast::AST = <Spanned<Item>*> => ast::AST(<>);
 
-pub Item: ast::Item = {
-    "image()" <Block> => ast::image(<>)
+Item: ast::Item = {
+    "image()" <Spanned<Block>> => ast::image(<>)
 };
 
-pub Block: ast::Block = "{" <Stmt*> "}" => ast::Block(<>);
+Block: ast::Block = "{" <Spanned<Stmt>*> "}" => ast::Block(<>);
 
-pub Stmt: ast::Stmt = {
-    "return" <Expr> => ast::ret(<>)
+Stmt: ast::Stmt = {
+    "return" <Spanned<Expr>> => ast::ret(<>)
 };
 
-pub Expr: ast::Expr = {
+Expr: ast::Expr = {
     r"[0-9]+(\.[0-9]+)?" => ast::lit(<>),
-    "(" <Expr> "," <Expr> ")" => ast::vec2(<>),
-    "(" <Expr> "," <Expr> "," <Expr> ")" => ast::vec3(<>),
+    r"[a-zA-z][a-zA-z0-9]*" => ast::var(<>),
+    "(" <Spanned<Expr>> "," <Spanned<Expr>> ")" => ast::vec2(<>),
+    "(" <Spanned<Expr>> "," <Spanned<Expr>> "," <Spanned<Expr>> ")" => ast::vec3(<>),
 };
+
+Spanned<T>: span::Spanned<T> = <l:@L> <data:T> <r:@R> => span::spanned(l, r, data);
+

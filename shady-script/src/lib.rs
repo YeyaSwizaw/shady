@@ -1,12 +1,14 @@
-#![feature(conservative_impl_trait)]
-
-use std::path::Path;
-use std::fs::File;
-use std::io::Read;
+extern crate lalrpop_util;
 
 pub use image::Image;
 
 pub mod ast;
+pub mod span;
+
+pub use analyse::AnalyseError;
+
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub struct ParseError<'a>(lalrpop_util::ParseError<usize, (usize, &'a str), ()>);
 
 mod analyse;
 mod instr;
@@ -44,11 +46,8 @@ impl Shady {
     }
 }
 
-pub fn parse_file<P: AsRef<Path>>(path: P) -> ast::AST {
-    let mut source = String::new();
-
-    File::open(path).and_then(|mut file| file.read_to_string(&mut source)).unwrap();
-    grammar::parse_AST(&source).unwrap()
+pub fn parse_input(input: &str) -> Result<ast::AST, ParseError>{
+    grammar::parse_AST(&input).map_err(|err| ParseError(err))
 }
 
 #[test]

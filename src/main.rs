@@ -12,6 +12,8 @@ use glium::backend::glutin_backend::GlutinFacade;
 
 use notify::{RecommendedWatcher, Watcher};
 
+use shady_script::{ParseError, AnalyseError};
+
 #[derive(Copy, Clone)]
 struct Vertex {
     v_xy: [f32; 2],
@@ -52,9 +54,10 @@ struct ImageDisplay {
 }
 
 #[derive(Debug)]
-enum CompileError {
+enum Error<'a> {
     IO(std::io::Error),
-    Glium(glium::ProgramCreationError)
+    Parse(ParseError<'a>),
+    Analyse(AnalyseError),
 }
 
 /*
@@ -73,10 +76,26 @@ fn try_compile_program<P: AsRef<Path>>(display: &GlutinFacade, path: P) -> Resul
 }
 */
 
-fn load_images<P: AsRef<Path>>(displays: &mut Vec<ImageDisplay>, path: P) {
+fn load_images<'a, P: AsRef<Path>>(buffer: &'a mut String, displays: &mut Vec<ImageDisplay>, path: P) -> Result<(), Error<'a>> {
+    buffer.clear();
+
     let mut idx = 0usize;
 
-    shady_script::parse_file(path).analyse().with_images(|image| {
+    if let Err(err) = File::open(path).and_then(|mut file| file.read_to_string(buffer)) {
+        return Err(Error::IO(err))
+    }
+
+    let ast = match shady_script::parse_input(buffer) {
+        Ok(ast) => ast,
+        Err(err) => return Err(Error::Parse(err))
+    };
+
+    let sdy = match ast.analyse() {
+        Ok(sdy) => sdy,
+        Err(err) => return Err(Error::Analyse(err))
+    };
+
+    sdy.with_images(|image| {
         let shader = image.standalone_shader();
         println!("Generated Shader: {}\n", shader);
 
@@ -111,24 +130,30 @@ fn load_images<P: AsRef<Path>>(displays: &mut Vec<ImageDisplay>, path: P) {
 
         idx += 1;
     });
+
+    Ok(())
 }
 
 fn main() {
+    let mut buffer = String::new();
     let path = Path::new("script.shy");
 
     let indices = glium::index::NoIndices(glium::index::PrimitiveType::TriangleFan);
 
     let mut displays = Vec::new();
-    load_images(&mut displays, path);
+    if let Err(err) = load_images(&mut buffer, &mut displays, path) {
+        println!("{:?}", err);
+    }
 
     let (tx, rx) = channel();
     let mut watcher: RecommendedWatcher = Watcher::new(tx).unwrap();
     watcher.watch(path).unwrap();
 
     loop {
-        match rx.try_recv() {
-            Ok(_) => load_images(&mut displays, path),
-            Err(_) => (),
+        if let Ok(_) = rx.try_recv() {
+            if let Err(err) = load_images(&mut buffer, &mut displays, path) {
+                println!("{:?}", err);
+            }
         };
 
         for display in &mut displays {
