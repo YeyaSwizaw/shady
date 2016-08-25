@@ -101,6 +101,7 @@ fn load_images<'a, P: AsRef<Path>>(buffer: &'a mut String, displays: &mut Vec<Im
 
         let new_display = match displays.get_mut(idx) {
             Some(mut display) => {
+                display.display.get_window().unwrap().set_title(&format!("Shady Image {}", idx));
                 display.program = Program::from_source(&display.display, vertex_shader_source, &shader, None).unwrap();
                 None
             }

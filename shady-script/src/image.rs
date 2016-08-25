@@ -58,6 +58,10 @@ impl fmt::Display for ast::Expr {
             &ast::Expr::Var(ref s) => write!(f, "{}", s),
             &ast::Expr::Vec2(ref exprs) => write!(f, "vec2({}, {})", exprs.0.data, exprs.1.data),
             &ast::Expr::Vec3(ref exprs) => write!(f, "vec3({}, {}, {})", exprs.0.data, exprs.1.data, exprs.2.data),
+            &ast::Expr::BinOp(ast::OpKind::Add, ref exprs) => write!(f, "{} + {}", exprs.0.data, exprs.1.data),
+            &ast::Expr::BinOp(ast::OpKind::Sub, ref exprs) => write!(f, "{} - {}", exprs.0.data, exprs.1.data),
+            &ast::Expr::BinOp(ast::OpKind::Mul, ref exprs) => write!(f, "({}) * ({})", exprs.0.data, exprs.1.data),
+            &ast::Expr::BinOp(ast::OpKind::Div, ref exprs) => write!(f, "({}) / ({})", exprs.0.data, exprs.1.data),
         }
     }
 }

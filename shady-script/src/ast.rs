@@ -27,7 +27,16 @@ pub enum Expr {
     Literal(String),
     Var(String),
     Vec2(Box<(Spanned<Expr>, Spanned<Expr>)>),
-    Vec3(Box<(Spanned<Expr>, Spanned<Expr>, Spanned<Expr>)>)
+    Vec3(Box<(Spanned<Expr>, Spanned<Expr>, Spanned<Expr>)>),
+    BinOp(OpKind, Box<(Spanned<Expr>, Spanned<Expr>)>),
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
+pub enum OpKind {
+    Add,
+    Sub,
+    Mul,
+    Div
 }
 
 pub fn image(block: Spanned<Block>) -> Item {
@@ -55,4 +64,20 @@ pub fn vec2(a: Spanned<Expr>, b: Spanned<Expr>) -> Expr {
 
 pub fn vec3(a: Spanned<Expr>, b: Spanned<Expr>, c: Spanned<Expr>) -> Expr {
     Expr::Vec3(Box::new((a, b, c)))
+}
+
+pub fn add(a: Spanned<Expr>, b: Spanned<Expr>) -> Expr {
+    Expr::BinOp(OpKind::Add, Box::new((a, b)))
+}
+
+pub fn sub(a: Spanned<Expr>, b: Spanned<Expr>) -> Expr {
+    Expr::BinOp(OpKind::Sub, Box::new((a, b)))
+}
+
+pub fn mul(a: Spanned<Expr>, b: Spanned<Expr>) -> Expr {
+    Expr::BinOp(OpKind::Mul, Box::new((a, b)))
+}
+
+pub fn div(a: Spanned<Expr>, b: Spanned<Expr>) -> Expr {
+    Expr::BinOp(OpKind::Div, Box::new((a, b)))
 }

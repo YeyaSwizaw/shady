@@ -6,6 +6,7 @@ use span::Span;
 pub enum AnalyseError {
     IncorrectReturnType(Span),
     IncorrectTupleTypes(Span),
+    IncorrectBinOpTypes(Span),
 }
 
 impl ast::AST {
@@ -70,6 +71,14 @@ impl instr::Item {
                     Ok(instr::Type::Vec3)
                 } else {
                     Err(AnalyseError::IncorrectTupleTypes(Span { begin: exprs.0.span.begin, end: exprs.2.span.end }))
+                }
+            },
+
+            &ast::Expr::BinOp(_, ref exprs) => {
+                match (try!(self.expr_type(&exprs.0.data)), try!(self.expr_type(&exprs.1.data))) {
+                    (instr::Type::Float, ty) | (ty, instr::Type::Float) => Ok(ty),
+                    (ref a, ref b) if *a == *b => Ok(*a),
+                    _ => Err(AnalyseError::IncorrectBinOpTypes(Span { begin: exprs.0.span.begin, end: exprs.1.span.end }))
                 }
             },
         }

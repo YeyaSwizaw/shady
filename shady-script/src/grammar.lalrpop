@@ -16,11 +16,25 @@ Stmt: ast::Stmt = {
 };
 
 Expr: ast::Expr = {
-    r"[0-9]+(\.[0-9]+)?" => ast::lit(<>),
-    r"[a-zA-z][a-zA-z0-9]*" => ast::var(<>),
+    <Spanned<Expr>> "+" <Spanned<Expr2>> => ast::add(<>),
+    <Spanned<Expr>> "-" <Spanned<Expr2>> => ast::sub(<>),
+    Expr2
+};
+
+Expr2: ast::Expr = {
+    <Spanned<Expr2>> "*" <Spanned<ExprTerm>> => ast::mul(<>),
+    <Spanned<Expr2>> "/" <Spanned<ExprTerm>> => ast::div(<>),
+    ExprTerm
+};
+
+ExprTerm: ast::Expr = {
     "(" <Spanned<Expr>> "," <Spanned<Expr>> ")" => ast::vec2(<>),
     "(" <Spanned<Expr>> "," <Spanned<Expr>> "," <Spanned<Expr>> ")" => ast::vec3(<>),
+    r"[a-zA-z][a-zA-z0-9]*" => ast::var(<>),
+    r"[0-9]+(\.[0-9]+)?" => ast::lit(<>),
+    "(" <Expr> ")"
 };
 
 Spanned<T>: span::Spanned<T> = <l:@L> <data:T> <r:@R> => span::spanned(l, r, data);
+
 
