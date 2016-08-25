@@ -6,13 +6,14 @@ grammar;
 pub AST: ast::AST = <Spanned<Item>*> => ast::AST(<>);
 
 Item: ast::Item = {
-    "image()" <Spanned<Block>> => ast::image(<>)
+    "image" <Spanned<Block>> => ast::image(<>)
 };
 
 Block: ast::Block = "{" <Spanned<Stmt>*> "}" => ast::Block(<>);
 
 Stmt: ast::Stmt = {
-    "return" <Spanned<Expr>> => ast::ret(<>)
+    "return" <Spanned<Expr>> => ast::ret(<>),
+    <Name> "=" <Spanned<Expr>> => ast::ass(<>),
 };
 
 Expr: ast::Expr = {
@@ -30,10 +31,12 @@ Expr2: ast::Expr = {
 ExprTerm: ast::Expr = {
     "(" <Spanned<Expr>> "," <Spanned<Expr>> ")" => ast::vec2(<>),
     "(" <Spanned<Expr>> "," <Spanned<Expr>> "," <Spanned<Expr>> ")" => ast::vec3(<>),
-    r"[a-zA-z][a-zA-z0-9]*" => ast::var(<>),
+    Name => ast::var(<>),
     r"[0-9]+(\.[0-9]+)?" => ast::lit(<>),
     "(" <Expr> ")"
 };
+
+Name = r"[a-zA-Z][a-zA-Z0-9]*";
 
 Spanned<T>: span::Spanned<T> = <l:@L> <data:T> <r:@R> => span::spanned(l, r, data);
 

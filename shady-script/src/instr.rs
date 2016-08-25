@@ -12,6 +12,7 @@ pub struct Item {
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum Instr {
+    Assignment(Type, String, ast::Expr),
     Return(ast::Expr)
 }
 
@@ -20,6 +21,10 @@ pub enum Type {
     Float,
     Vec2,
     Vec3
+}
+
+pub fn ass(ty: Type, name: String, expr: ast::Expr) -> Instr {
+    Instr::Assignment(ty, name, expr)
 }
 
 pub fn ret(expr: ast::Expr) -> Instr {

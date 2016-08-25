@@ -29,13 +29,13 @@ void main() {{
 
 impl instr::Item {
     fn shader_function(&self) -> String {
-        format!("vec3 image(float x, float y) {{\n {}}}", self.instrs)
+        format!("vec3 image(float x, float y) {{\n{}}}", self.instrs)
     }
 }
 
 impl fmt::Display for instr::Block {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        for inst in self.0.iter().rev() {
+        for inst in self.0.iter() {
             try!(write!(f, "    {};\n", inst))
         }
 
@@ -46,7 +46,18 @@ impl fmt::Display for instr::Block {
 impl fmt::Display for instr::Instr {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match self {
+            &instr::Instr::Assignment(ref ty, ref name, ref expr) => write!(f, "{} {} = {}", ty, name, expr),
             &instr::Instr::Return(ref expr) => write!(f, "return {}", expr)
+        }
+    }
+}
+
+impl fmt::Display for instr::Type {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        match self {
+            &instr::Type::Float => write!(f, "float"),
+            &instr::Type::Vec2 => write!(f, "vec2"),
+            &instr::Type::Vec3 => write!(f, "vec3"),
         }
     }
 }

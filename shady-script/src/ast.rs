@@ -19,6 +19,7 @@ pub struct Block(pub Vec<Spanned<Stmt>>);
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum Stmt {
+    Assignment(String, Spanned<Expr>),
     Return(Spanned<Expr>)
 }
 
@@ -44,6 +45,10 @@ pub fn image(block: Spanned<Block>) -> Item {
         block: block,
         item: ItemKind::Image
     }
+}
+
+pub fn ass<S: Into<String>>(name: S, expr: Spanned<Expr>) -> Stmt {
+    Stmt::Assignment(name.into(), expr)
 }
 
 pub fn ret(expr: Spanned<Expr>) -> Stmt {

@@ -2,51 +2,33 @@ use ast;
 use instr;
 use span::Span;
 
+use std::collections::HashMap;
+
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum AnalyseError {
     IncorrectReturnType(Span),
     IncorrectTupleTypes(Span),
     IncorrectBinOpTypes(Span),
+    UndefinedName(String),
 }
 
-impl ast::AST {
-    pub fn analyse(&self) -> Result<::Shady, AnalyseError> {
-        let mut shady = ::Shady::new();
-
-        for item in &self.0 {
-            shady.push_item(try!(item.data.analyse()));
-        }
-
-        Ok(shady)
-    }
+struct Env {
+    names: HashMap<String, instr::Type>
 }
 
-impl ast::Item {
-    pub fn analyse(&self) -> Result<instr::Item, AnalyseError> {
-        let mut item = instr::Item::new(self.item);
+impl Env {
+    fn new(item: ast::ItemKind) -> Env {
+        let mut names = HashMap::new();
 
-        for stmt in &self.block.data.0 {
-            match &stmt.data {
-                &ast::Stmt::Return(ref expr) => if try!(item.expr_type(&expr.data)) == item.ret {
-                    item.push_instr(instr::ret(expr.data.clone()));
-                } else {
-                    return Err(AnalyseError::IncorrectReturnType(stmt.span));
-                }
+        match item {
+            ast::ItemKind::Image => {
+                names.insert("x".into(), instr::Type::Float);
+                names.insert("y".into(), instr::Type::Float);
             }
         }
 
-        Ok(item)
-    }
-}
-
-impl instr::Item {
-    fn new(kind: ast::ItemKind) -> instr::Item {
-        match kind {
-            ast::ItemKind::Image => instr::Item {
-                ret: instr::Type::Vec3,
-                kind: ast::ItemKind::Image,
-                instrs: instr::Block(Vec::new())
-            }
+        Env {
+            names: names
         }
     }
 
@@ -54,7 +36,7 @@ impl instr::Item {
         match expr {
             &ast::Expr::Literal(_) => Ok(instr::Type::Float),
 
-            &ast::Expr::Var(_) => Ok(instr::Type::Float),
+            &ast::Expr::Var(ref name) => self.lookup(name).ok_or(AnalyseError::UndefinedName(name.clone())),
 
             &ast::Expr::Vec2(ref exprs) => {
                 let ty = try!(self.expr_type(&exprs.0.data));
@@ -81,6 +63,64 @@ impl instr::Item {
                     _ => Err(AnalyseError::IncorrectBinOpTypes(Span { begin: exprs.0.span.begin, end: exprs.1.span.end }))
                 }
             },
+        }
+    }
+
+
+    fn lookup(&self, name: &str) -> Option<instr::Type> {
+        self.names.get(name).cloned()
+    }
+
+    fn insert<S: Into<String>>(&mut self, name: S, ty: instr::Type) {
+        self.names.insert(name.into(), ty);
+    }
+}
+
+impl ast::AST {
+    pub fn analyse(&self) -> Result<::Shady, AnalyseError> {
+        let mut shady = ::Shady::new();
+
+        for item in &self.0 {
+            shady.push_item(try!(item.data.analyse()));
+        }
+
+        Ok(shady)
+    }
+}
+
+impl ast::Item {
+    pub fn analyse(&self) -> Result<instr::Item, AnalyseError> {
+        let mut item = instr::Item::new(self.item);
+        let mut env = Env::new(self.item);
+
+        for stmt in &self.block.data.0 {
+            match &stmt.data {
+                &ast::Stmt::Assignment(ref name, ref expr) => {
+                    let ty = try!(env.expr_type(&expr.data));
+                    env.insert(name.clone(), ty);
+                    item.push_instr(instr::ass(ty, name.clone(), expr.data.clone()));
+                },
+
+                &ast::Stmt::Return(ref expr) => if try!(env.expr_type(&expr.data)) == item.ret {
+                    item.push_instr(instr::ret(expr.data.clone()));
+                } else {
+                    return Err(AnalyseError::IncorrectReturnType(stmt.span));
+                }
+            }
+        }
+
+        Ok(item)
+    }
+}
+
+impl instr::Item {
+    fn new(kind: ast::ItemKind) -> instr::Item {
+        match kind {
+            ast::ItemKind::Image => instr::Item {
+                ret: instr::Type::Vec3,
+                kind: ast::ItemKind::Image,
+                instrs: instr::Block(Vec::new())
+            }
         }
     }
 
