@@ -9,7 +9,7 @@ Item: ast::Item = {
     "image" <Spanned<Block>> => ast::image(<>)
 };
 
-Block: ast::Block = "{" <Spanned<Stmt>*> "}" => ast::Block(<>);
+Block: ast::Block = "{" <Spanned<Stmt>*> <Spanned<Expr>?> "}" => ast::block(<>);
 
 Stmt: ast::Stmt = {
     "return" <Spanned<Expr>> => ast::ret(<>),

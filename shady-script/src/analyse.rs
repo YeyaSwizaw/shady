@@ -10,6 +10,7 @@ pub enum AnalyseError {
     IncorrectTupleTypes(Span),
     IncorrectBinOpTypes(Span),
     UndefinedName(String),
+    ExpectedReturn(Span)
 }
 
 struct Env {
@@ -93,7 +94,7 @@ impl ast::Item {
         let mut item = instr::Item::new(self.item);
         let mut env = Env::new(self.item);
 
-        for stmt in &self.block.data.0 {
+        for stmt in &self.block.data.stmts {
             match &stmt.data {
                 &ast::Stmt::Assignment(ref name, ref expr) => {
                     let ty = try!(env.expr_type(&expr.data));
@@ -109,7 +110,20 @@ impl ast::Item {
             }
         }
 
-        Ok(item)
+        if let Some(ref expr) = self.block.data.expr {
+            if try!(env.expr_type(&expr.data)) == item.ret {
+                item.push_instr(instr::ret(expr.data.clone()));
+            } else {
+                return Err(AnalyseError::IncorrectReturnType(expr.span));
+            }
+        };
+
+        if let Some(&instr::Instr::Return(_)) = item.instrs.0.last() {
+            Ok(item)
+        } else {
+            return Err(AnalyseError::ExpectedReturn(self.block.span))
+        }
+
     }
 }
 

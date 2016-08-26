@@ -15,7 +15,10 @@ pub enum ItemKind {
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]
-pub struct Block(pub Vec<Spanned<Stmt>>);
+pub struct Block {
+    pub stmts: Vec<Spanned<Stmt>>, 
+    pub expr: Option<Spanned<Expr>>
+}
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum Stmt {
@@ -44,6 +47,13 @@ pub fn image(block: Spanned<Block>) -> Item {
     Item {
         block: block,
         item: ItemKind::Image
+    }
+}
+
+pub fn block(stmts: Vec<Spanned<Stmt>>, expr: Option<Spanned<Expr>>) -> Block {
+    Block {
+        stmts: stmts,
+        expr: expr
     }
 }
 

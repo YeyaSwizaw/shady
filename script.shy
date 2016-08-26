@@ -1,9 +1,6 @@
 image {
     xp = (x - 0.5) * (x - 0.5)
     yp = (y - 0.5) * (y - 0.5)
-    return (
-        xp,
-        (xp + yp),
-        yp
-    )
+
+    (xp, (xp + yp), yp)
 }
