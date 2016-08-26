@@ -35,7 +35,7 @@ impl instr::Item {
 
 impl fmt::Display for instr::Block {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        for inst in self.0.iter() {
+        for inst in &self.0 {
             try!(write!(f, "    {};\n", inst))
         }
 

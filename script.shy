@@ -2,5 +2,5 @@ image {
     xp = (x - 0.5) * (x - 0.5)
     yp = (y - 0.5) * (y - 0.5)
 
-    (xp, (xp + yp), yp)
+    (4.0 - xp / yp, 2.0 - xp / yp, xp / yp)
 }

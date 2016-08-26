@@ -47,7 +47,7 @@ impl Shady {
 }
 
 pub fn parse_input(input: &str) -> Result<ast::AST, ParseError>{
-    grammar::parse_AST(&input).map_err(|err| ParseError(err))
+    grammar::parse_AST(input).map_err(ParseError)
 }
 
 #[test]

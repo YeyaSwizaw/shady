@@ -1,4 +1,5 @@
 #[macro_use] extern crate glium;
+extern crate clap;
 extern crate notify;
 extern crate shady_script;
 
@@ -9,6 +10,8 @@ use std::sync::mpsc::channel;
 
 use glium::{Program, VertexBuffer, DisplayBuild, Surface};
 use glium::backend::glutin_backend::GlutinFacade;
+
+use clap::{App, Arg};
 
 use notify::{RecommendedWatcher, Watcher};
 
@@ -60,22 +63,6 @@ enum Error<'a> {
     Analyse(AnalyseError),
 }
 
-/*
-fn try_compile_program<P: AsRef<Path>>(display: &GlutinFacade, path: P) -> Result<Program, CompileError> {
-    let mut fragment_shader_script = String::new();
-
-    if let Err(err) = File::open(path).and_then(|mut file| file.read_to_string(&mut fragment_shader_script)) {
-        return Err(CompileError::IO(err))
-    }
-
-    let fragment_shader_source = &shady_script::parse(&fragment_shader_script).generate_fragment_shader();
-    println!("{}", fragment_shader_source);
-
-    glium::Program::from_source(display, vertex_shader_source, &fragment_shader_source, None)
-        .map_err(|err| CompileError::Glium(err))
-}
-*/
-
 fn load_images<'a, P: AsRef<Path>>(buffer: &'a mut String, displays: &mut Vec<ImageDisplay>, path: P) -> Result<(), Error<'a>> {
     buffer.clear();
 
@@ -97,7 +84,7 @@ fn load_images<'a, P: AsRef<Path>>(buffer: &'a mut String, displays: &mut Vec<Im
 
     sdy.with_images(|image| {
         let shader = image.standalone_shader();
-        println!("Generated Shader: {}\n", shader);
+        println!("\nGenerated Shader {}:\n{}\n", idx, shader);
 
         let new_display = match displays.get_mut(idx) {
             Some(mut display) => {
@@ -136,8 +123,27 @@ fn load_images<'a, P: AsRef<Path>>(buffer: &'a mut String, displays: &mut Vec<Im
 }
 
 fn main() {
+    let matches = App::new("Shady")
+        .author("Samuel Sleight <samuel.sleight@gmail.com>")
+        .version("0.1.0")
+        .arg(Arg::with_name("script")
+             .help("The script to load images from")
+             .required(true))
+        .arg(Arg::with_name("once")
+             .help("Only load images once; do not watch the script for changes")
+             .long("once")
+             .short("o"))
+        .arg(Arg::with_name("keep")
+             .help("Keep watching the script if all windows are closed")
+             .long("keep")
+             .short("k"))
+        .get_matches();
+
+    let path = Path::new(matches.value_of("script").unwrap());
+    let once = matches.is_present("once");
+    let keep = !once && matches.is_present("keep");
+
     let mut buffer = String::new();
-    let path = Path::new("script.shy");
 
     let indices = glium::index::NoIndices(glium::index::PrimitiveType::TriangleFan);
 
@@ -146,15 +152,22 @@ fn main() {
         println!("{:?}", err);
     }
 
-    let (tx, rx) = channel();
-    let mut watcher: RecommendedWatcher = Watcher::new(tx).unwrap();
-    watcher.watch(path).unwrap();
+    let watcher = if once {
+        None
+    } else {
+        let (tx, rx) = channel();
+        let mut watcher: RecommendedWatcher = Watcher::new(tx).unwrap();
+        watcher.watch(path).unwrap();
+        Some((rx, watcher))
+    };
 
     loop {
-        if let Ok(_) = rx.try_recv() {
-            if let Err(err) = load_images(&mut buffer, &mut displays, path) {
-                println!("{:?}", err);
-            }
+        if let Some((ref rx, _)) = watcher {
+            if let Ok(_) = rx.try_recv() {
+                if let Err(err) = load_images(&mut buffer, &mut displays, path) {
+                    println!("{:?}", err);
+                }
+            };
         };
 
         for display in &mut displays {
@@ -175,8 +188,8 @@ fn main() {
             target.finish().unwrap();
         }
 
-        displays.retain(|display| display.done == false);
-        if displays.is_empty() {
+        displays.retain(|display| !display.done);
+        if displays.is_empty() && !keep {
             break
         }
     }
