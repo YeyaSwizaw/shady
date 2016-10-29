@@ -7,6 +7,7 @@ version = "0.1.0"
 clap = "2.10.4"
 glium = "0.15.0"
 notify = "2.6.3"
+shady-script = { path = "shady-script" }
 
-[dependencies.shady-script]
-path = "shady-script"
+[workspace]
+

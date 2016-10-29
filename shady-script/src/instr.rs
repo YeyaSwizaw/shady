@@ -1,32 +1,47 @@
 use ast;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
-pub struct Block(pub Vec<Instr>);
+pub struct Block {
+    pub ret: Option<Type>,
+    pub instrs: Vec<Instr>,
+}
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Item {
     pub ret: Type,
     pub kind: ast::ItemKind,
-    pub instrs: Block
+    pub instrs: Vec<Instr>
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum Instr {
-    Assignment(Type, String, ast::Expr),
-    Return(ast::Expr)
+    Decl(String, Type, Option<ExprKind>),
+    Assignment(String, Expr),
+    Return(Expr),
+    ITE(ExprKind, Block, Option<Block>),
+}
+
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub struct Expr {
+    pub ty: Type,
+    pub expr: ExprKind
+}
+
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub enum ExprKind {
+    Literal(String),
+    Bool(bool),
+    Var(String),
+    Vec2(Box<(ExprKind, ExprKind)>),
+    Vec3(Box<(ExprKind, ExprKind, ExprKind)>),
+    BinOp(ast::OpKind, Box<(ExprKind, ExprKind)>),
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub enum Type {
+    Void,
     Float,
+    Bool,
     Vec2,
     Vec3
-}
-
-pub fn ass(ty: Type, name: String, expr: ast::Expr) -> Instr {
-    Instr::Assignment(ty, name, expr)
-}
-
-pub fn ret(expr: ast::Expr) -> Instr {
-    Instr::Return(expr)
 }

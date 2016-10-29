@@ -23,24 +23,45 @@ pub struct Block {
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum Stmt {
     Assignment(String, Spanned<Expr>),
-    Return(Spanned<Expr>)
+    Return(Spanned<Expr>),
+    Expr(ExprStmt),
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum Expr {
     Literal(String),
+    Bool(bool),
     Var(String),
     Vec2(Box<(Spanned<Expr>, Spanned<Expr>)>),
     Vec3(Box<(Spanned<Expr>, Spanned<Expr>, Spanned<Expr>)>),
     BinOp(OpKind, Box<(Spanned<Expr>, Spanned<Expr>)>),
+    Stmt(ExprStmt),
+}
+
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub enum ExprStmt {
+    ITE(Box<(Spanned<Expr>, Spanned<Block>, Option<Spanned<Block>>)>),
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub enum OpKind {
+    ArithOp(ArithOpKind),
+    CmpOp(CmpOpKind),
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
+pub enum ArithOpKind {
     Add,
     Sub,
     Mul,
-    Div
+    Div,
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
+pub enum CmpOpKind {
+    Lt,
+    Gt,
+    Eq,
 }
 
 pub fn image(block: Spanned<Block>) -> Item {
@@ -82,17 +103,41 @@ pub fn vec3(a: Spanned<Expr>, b: Spanned<Expr>, c: Spanned<Expr>) -> Expr {
 }
 
 pub fn add(a: Spanned<Expr>, b: Spanned<Expr>) -> Expr {
-    Expr::BinOp(OpKind::Add, Box::new((a, b)))
+    Expr::BinOp(OpKind::ArithOp(ArithOpKind::Add), Box::new((a, b)))
 }
 
 pub fn sub(a: Spanned<Expr>, b: Spanned<Expr>) -> Expr {
-    Expr::BinOp(OpKind::Sub, Box::new((a, b)))
+    Expr::BinOp(OpKind::ArithOp(ArithOpKind::Sub), Box::new((a, b)))
 }
 
 pub fn mul(a: Spanned<Expr>, b: Spanned<Expr>) -> Expr {
-    Expr::BinOp(OpKind::Mul, Box::new((a, b)))
+    Expr::BinOp(OpKind::ArithOp(ArithOpKind::Mul), Box::new((a, b)))
 }
 
 pub fn div(a: Spanned<Expr>, b: Spanned<Expr>) -> Expr {
-    Expr::BinOp(OpKind::Div, Box::new((a, b)))
+    Expr::BinOp(OpKind::ArithOp(ArithOpKind::Div), Box::new((a, b)))
+}
+
+pub fn lt(a: Spanned<Expr>, b: Spanned<Expr>) -> Expr {
+    Expr::BinOp(OpKind::CmpOp(CmpOpKind::Lt), Box::new((a, b)))
+}
+
+pub fn gt(a: Spanned<Expr>, b: Spanned<Expr>) -> Expr {
+    Expr::BinOp(OpKind::CmpOp(CmpOpKind::Gt), Box::new((a, b)))
+}
+
+pub fn eq(a: Spanned<Expr>, b: Spanned<Expr>) -> Expr {
+    Expr::BinOp(OpKind::CmpOp(CmpOpKind::Eq), Box::new((a, b)))
+}
+
+pub fn ite(i: Spanned<Expr>, t: Spanned<Block>, e: Option<Spanned<Block>>) -> ExprStmt {
+    ExprStmt::ITE(Box::new((i, t, e)))
+}
+
+pub fn t() -> Expr {
+    Expr::Bool(true)
+}
+
+pub fn f() -> Expr {
+    Expr::Bool(false)
 }

@@ -9,14 +9,22 @@ Item: ast::Item = {
     "image" <Spanned<Block>> => ast::image(<>)
 };
 
-Block: ast::Block = "{" <Spanned<Stmt>*> <Spanned<Expr>?> "}" => ast::block(<>);
+Block: ast::Block = "{" <(<Spanned<Stmt>> ";")*> <Spanned<Expr>?> "}" => ast::block(<>);
 
 Stmt: ast::Stmt = {
     "return" <Spanned<Expr>> => ast::ret(<>),
     <Name> "=" <Spanned<Expr>> => ast::ass(<>),
+    <ExprStmt> => ast::Stmt::Expr(<>),
 };
 
 Expr: ast::Expr = {
+    <Spanned<Expr>> "<" <Spanned<Expr2>> => ast::lt(<>),
+    <Spanned<Expr>> ">" <Spanned<Expr2>> => ast::gt(<>),
+    <Spanned<Expr>> "==" <Spanned<Expr2>> => ast::eq(<>),
+    Expr1
+};
+
+Expr1: ast::Expr = {
     <Spanned<Expr>> "+" <Spanned<Expr2>> => ast::add(<>),
     <Spanned<Expr>> "-" <Spanned<Expr2>> => ast::sub(<>),
     Expr2
@@ -31,9 +39,16 @@ Expr2: ast::Expr = {
 ExprTerm: ast::Expr = {
     "(" <Spanned<Expr>> "," <Spanned<Expr>> ")" => ast::vec2(<>),
     "(" <Spanned<Expr>> "," <Spanned<Expr>> "," <Spanned<Expr>> ")" => ast::vec3(<>),
+    "true" => ast::t(),
+    "false" => ast::f(),
     Name => ast::var(<>),
     r"[0-9]+(\.[0-9]+)?" => ast::lit(<>),
-    "(" <Expr> ")"
+    "(" <Expr> ")",
+    <ExprStmt> => ast::Expr::Stmt(<>)
+};
+
+ExprStmt: ast::ExprStmt = {
+    "if" <Spanned<Expr>> <Spanned<Block>> <("else" <Spanned<Block>>)?> => ast::ite(<>),
 };
 
 Name = r"[a-zA-Z][a-zA-Z0-9]*";
