@@ -1,3 +1,5 @@
+#![feature(slice_patterns)]
+
 #[macro_use] extern crate glium;
 extern crate clap;
 extern crate notify;
@@ -7,15 +9,17 @@ use std::fs::File;
 use std::path::Path;
 use std::io::Read;
 use std::sync::mpsc::channel;
+use std::time::{Duration, Instant};
 
 use glium::{Program, VertexBuffer, DisplayBuild, Surface};
 use glium::backend::glutin_backend::GlutinFacade;
+use glium::uniforms::EmptyUniforms;
 
 use clap::{App, Arg};
 
 use notify::{RecommendedWatcher, Watcher};
 
-use shady_script::{ParseError, AnalyseError};
+use shady_script::{ParseError, AnalyseError, Uniform};
 
 #[derive(Copy, Clone)]
 struct Vertex {
@@ -53,6 +57,7 @@ struct ImageDisplay {
     display: GlutinFacade,
     buffer: VertexBuffer<Vertex>,
     program: Program,
+    uniforms: Vec<Uniform>,
     done: bool
 }
 
@@ -90,6 +95,7 @@ fn load_images<'a, P: AsRef<Path>>(buffer: &'a mut String, displays: &mut Vec<Im
             Some(mut display) => {
                 display.display.get_window().unwrap().set_title(&format!("Shady Image {}", idx));
                 display.program = Program::from_source(&display.display, vertex_shader_source, &shader, None).unwrap();
+                display.uniforms = image.standalone_uniforms();
                 None
             }
 
@@ -107,6 +113,7 @@ fn load_images<'a, P: AsRef<Path>>(buffer: &'a mut String, displays: &mut Vec<Im
                     display: display,
                     buffer: vertex_buffer,
                     program: program,
+                    uniforms: image.standalone_uniforms(),
                     done: false
                 })
             }
@@ -161,14 +168,20 @@ fn main() {
         Some((rx, watcher))
     };
 
+    let mut time = Instant::now();
+
     loop {
         if let Some((ref rx, _)) = watcher {
             if let Ok(_) = rx.try_recv() {
+                time = Instant::now();
+
                 if let Err(err) = load_images(&mut buffer, &mut displays, path) {
                     println!("{:?}", err);
                 }
             };
         };
+
+        let duration = time.elapsed().subsec_nanos() as f32 / 1000000000.0;
 
         for display in &mut displays {
             let mut done = false;
@@ -184,7 +197,15 @@ fn main() {
 
             let mut target = display.display.draw();
             target.clear_color(1.0, 0.0, 0.0, 0.0);
-            target.draw(&display.buffer, &indices, &display.program, &glium::uniforms::EmptyUniforms, &Default::default()).unwrap();
+
+            match display.uniforms.as_slice() {
+                &[Uniform::Time] => {
+                    target.draw(&display.buffer, &indices, &display.program, &uniform! { time: duration }, &Default::default()).unwrap();
+                },
+
+                _ => target.draw(&display.buffer, &indices, &display.program, &EmptyUniforms, &Default::default()).unwrap()
+            };
+
             target.finish().unwrap();
         }
 

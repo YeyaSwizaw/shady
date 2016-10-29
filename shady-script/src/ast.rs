@@ -11,7 +11,7 @@ pub struct Item {
 
 #[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub enum ItemKind {
-    Image
+    Image,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -29,6 +29,7 @@ pub enum Stmt {
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum Expr {
+    KeyVar(KeyVar),
     Literal(String),
     Bool(bool),
     Var(String),
@@ -36,6 +37,13 @@ pub enum Expr {
     Vec3(Box<(Spanned<Expr>, Spanned<Expr>, Spanned<Expr>)>),
     BinOp(OpKind, Box<(Spanned<Expr>, Spanned<Expr>)>),
     Stmt(ExprStmt),
+}
+
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Clone, Copy)]
+pub enum KeyVar {
+    XPos,
+    YPos,
+    Time
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]

@@ -1,15 +1,41 @@
-use std::fmt;
+use std::fmt::{self, Write};
 
 use ::{ast, instr};
 
 pub struct Image<'a>(&'a ::Shady, usize);
+
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+pub enum Uniform {
+    Time
+}
 
 impl<'a> Image<'a> {
     pub fn new(shady: &'a ::Shady, idx: usize) -> Image<'a> {
         Image(shady, idx)
     }
 
+    pub fn standalone_uniforms(&self) -> Vec<Uniform> {
+        self.0.get(self.1).vars.iter().filter_map(|var| match var {
+            &ast::KeyVar::Time => Some(Uniform::Time),
+            _ => None
+        }).collect()
+    }
+
     pub fn standalone_shader(&self) -> String {
+        let mut uniform_buffer = String::new();
+        for uniform in self.standalone_uniforms().iter() {
+            match *uniform {
+                Uniform::Time => writeln!(uniform_buffer, "uniform float time;").unwrap(),
+            }
+        }
+
+        let mut arg_buffer = "uv.x, uv.y".to_owned();
+        for uniform in self.standalone_uniforms().iter() {
+            match *uniform {
+                Uniform::Time => write!(arg_buffer, ", time").unwrap()
+            }
+        }
+
         format!(
             r#"#version 330 core
 
@@ -18,11 +44,14 @@ in vec2 uv;
 out vec3 colour;
 
 {}
+{}
 
 void main() {{
-    colour = image(uv.x, uv.y);
+    colour = image({});
 }}"#, 
-            self.0.get(self.1).shader_function()
+            uniform_buffer, 
+            self.0.get(self.1).shader_function(&self.standalone_uniforms()),
+            arg_buffer
         )
     }
 }
@@ -30,8 +59,15 @@ void main() {{
 struct InstrVec<'a>(&'a Vec<instr::Instr>);
 
 impl instr::Item {
-    fn shader_function(&self) -> String {
-        format!("vec3 image(float x, float y) {{\n{}}}", InstrVec(&self.instrs))
+    fn shader_function(&self, uniforms: &[Uniform]) -> String {
+        let mut arg_buffer = "float x, float y".to_owned();
+        for uniform in uniforms {
+            match *uniform {
+                Uniform::Time => write!(arg_buffer, ", float t").unwrap()
+            }
+        }
+
+        format!("vec3 image({}) {{\n{}}}", arg_buffer, InstrVec(&self.instrs))
     }
 }
 
@@ -86,6 +122,9 @@ impl fmt::Display for instr::Type {
 impl fmt::Display for instr::ExprKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match self {
+            &instr::ExprKind::KeyVar(ast::KeyVar::XPos) => write!(f, "x"),
+            &instr::ExprKind::KeyVar(ast::KeyVar::YPos) => write!(f, "y"),
+            &instr::ExprKind::KeyVar(ast::KeyVar::Time) => write!(f, "t"),
             &instr::ExprKind::Literal(ref s) => write!(f, "{}", s),
             &instr::ExprKind::Bool(ref b) => write!(f, "{}", b),
             &instr::ExprKind::Var(ref s) => write!(f, "{}", s),

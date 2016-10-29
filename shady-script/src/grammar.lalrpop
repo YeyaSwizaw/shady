@@ -6,7 +6,7 @@ grammar;
 pub AST: ast::AST = <Spanned<Item>*> => ast::AST(<>);
 
 Item: ast::Item = {
-    "image" <Spanned<Block>> => ast::image(<>)
+    "image" <Spanned<Block>> => ast::image(<>),
 };
 
 Block: ast::Block = "{" <(<Spanned<Stmt>> ";")*> <Spanned<Expr>?> "}" => ast::block(<>);
@@ -41,6 +41,9 @@ ExprTerm: ast::Expr = {
     "(" <Spanned<Expr>> "," <Spanned<Expr>> "," <Spanned<Expr>> ")" => ast::vec3(<>),
     "true" => ast::t(),
     "false" => ast::f(),
+    "x" => ast::Expr::KeyVar(ast::KeyVar::XPos),
+    "y" => ast::Expr::KeyVar(ast::KeyVar::YPos),
+    "t" => ast::Expr::KeyVar(ast::KeyVar::Time),
     Name => ast::var(<>),
     r"[0-9]+(\.[0-9]+)?" => ast::lit(<>),
     "(" <Expr> ")",

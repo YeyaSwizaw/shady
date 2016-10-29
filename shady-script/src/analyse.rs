@@ -2,7 +2,7 @@ use ast;
 use instr;
 use span::{Span, Spanned};
 
-use std::collections::HashMap;
+use std::collections::{HashMap, BTreeSet};
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum AnalyseError {
@@ -17,13 +17,15 @@ pub enum AnalyseError {
 }
 
 struct Env {
-    names: HashMap<String, instr::Type>
+    names: HashMap<String, instr::Type>,
+    used: BTreeSet<ast::KeyVar>,
 }
 
 impl Env {
     fn new() -> Env {
         Env {
-            names: HashMap::new()
+            names: HashMap::new(),
+            used: BTreeSet::new()
         }
     }
 
@@ -33,6 +35,10 @@ impl Env {
 
     fn insert<S: Into<String>>(&mut self, name: S, ty: instr::Type) {
         self.names.insert(name.into(), ty);
+    }
+
+    fn use_var(&mut self, var: ast::KeyVar) {
+        self.used.insert(var);
     }
 }
 
@@ -50,13 +56,6 @@ impl ast::AST {
 
 fn analyse_item(item: &Spanned<ast::Item>) -> Result<instr::Item, AnalyseError> {
     let mut env = Env::new();
-
-    match item.data.item {
-        ast::ItemKind::Image => {
-            env.insert("x", instr::Type::Float);
-            env.insert("y", instr::Type::Float);
-        }
-    };
 
     let block = try!(analyse_block(&mut env, &item.data.block, Some(&mut |block, env, expr| {
         let e = try!(analyse_expr(env, expr));
@@ -80,7 +79,8 @@ fn analyse_item(item: &Spanned<ast::Item>) -> Result<instr::Item, AnalyseError> 
             Ok(instr::Item {
                 ret: instr::Type::Vec3,
                 kind: ast::ItemKind::Image,
-                instrs: block.instrs
+                instrs: block.instrs,
+                vars: env.used
             })
         } else {
             unimplemented!();
@@ -184,6 +184,15 @@ fn analyse_block(env: &mut Env, block: &Spanned<ast::Block>, expr_handler: Optio
 
 fn analyse_expr(env: &mut Env, expr: &Spanned<ast::Expr>) -> Result<instr::Expr, AnalyseError> {
     match expr.data {
+        ast::Expr::KeyVar(var) => {
+            env.use_var(var);
+
+            Ok(instr::Expr {
+                ty: instr::Type::Float,
+                expr: instr::ExprKind::KeyVar(var)
+            })
+        },
+
         ast::Expr::Literal(ref lit) => Ok(instr::Expr {
             ty: instr::Type::Float,
             expr: instr::ExprKind::Literal(lit.clone())

@@ -6,6 +6,7 @@ pub mod ast;
 pub mod span;
 
 pub use analyse::AnalyseError;
+pub use image::Uniform;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct ParseError<'a>(lalrpop_util::ParseError<usize, (usize, &'a str), ()>);

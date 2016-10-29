@@ -1,4 +1,5 @@
 use ast;
+use std::collections::BTreeSet;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Block {
@@ -10,7 +11,8 @@ pub struct Block {
 pub struct Item {
     pub ret: Type,
     pub kind: ast::ItemKind,
-    pub instrs: Vec<Instr>
+    pub instrs: Vec<Instr>,
+    pub vars: BTreeSet<ast::KeyVar>
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -29,6 +31,7 @@ pub struct Expr {
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum ExprKind {
+    KeyVar(ast::KeyVar),
     Literal(String),
     Bool(bool),
     Var(String),

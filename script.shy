@@ -1,11 +1,16 @@
 image {
+    (t, 1 - t, 0)
+}
+
+image {
     xp = 0;
     yp = (y - 0.5) * (y - 0.5);
 
-    if x > 0 {
-        xp = (x - 0.5) * (x - 0.8);
+    if x > 0.5 {
+        xp = (x - t) * (x - 0.8);
+        return (1 - xp / yp, 2.0 + xp / yp, xp / yp);
     } else {
-        xp = (x - 0.2) * (x - 0.5);
+        xp = (x - 0.2) * (x - t);
         return (1 - xp / yp, 2.0 + xp / yp, xp / yp);
     };
 }
