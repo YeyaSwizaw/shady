@@ -6,7 +6,9 @@ pub struct Image<'a>(&'a ::Shady, usize);
 
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Uniform {
-    Time
+    Time,
+    MouseX,
+    MouseY,
 }
 
 impl<'a> Image<'a> {
@@ -17,6 +19,8 @@ impl<'a> Image<'a> {
     pub fn standalone_uniforms(&self) -> Vec<Uniform> {
         self.0.get(self.1).vars.iter().filter_map(|var| match var {
             &ast::KeyVar::Time => Some(Uniform::Time),
+            &ast::KeyVar::MouseX => Some(Uniform::MouseX),
+            &ast::KeyVar::MouseY => Some(Uniform::MouseY),
             _ => None
         }).collect()
     }
@@ -26,13 +30,17 @@ impl<'a> Image<'a> {
         for uniform in self.standalone_uniforms().iter() {
             match *uniform {
                 Uniform::Time => writeln!(uniform_buffer, "uniform float time;").unwrap(),
+                Uniform::MouseX => writeln!(uniform_buffer, "uniform float mouse_x;").unwrap(),
+                Uniform::MouseY => writeln!(uniform_buffer, "uniform float mouse_y;").unwrap(),
             }
         }
 
         let mut arg_buffer = "uv.x, uv.y".to_owned();
         for uniform in self.standalone_uniforms().iter() {
             match *uniform {
-                Uniform::Time => write!(arg_buffer, ", time").unwrap()
+                Uniform::Time => write!(arg_buffer, ", time").unwrap(),
+                Uniform::MouseX => write!(arg_buffer, ", mouse_x").unwrap(),
+                Uniform::MouseY => write!(arg_buffer, ", mouse_y").unwrap(),
             }
         }
 
@@ -63,7 +71,9 @@ impl instr::Item {
         let mut arg_buffer = "float x, float y".to_owned();
         for uniform in uniforms {
             match *uniform {
-                Uniform::Time => write!(arg_buffer, ", float t").unwrap()
+                Uniform::Time => write!(arg_buffer, ", float t").unwrap(),
+                Uniform::MouseX => write!(arg_buffer, ", float mx").unwrap(),
+                Uniform::MouseY => write!(arg_buffer, ", float my").unwrap()
             }
         }
 
@@ -125,6 +135,8 @@ impl fmt::Display for instr::ExprKind {
             &instr::ExprKind::KeyVar(ast::KeyVar::XPos) => write!(f, "x"),
             &instr::ExprKind::KeyVar(ast::KeyVar::YPos) => write!(f, "y"),
             &instr::ExprKind::KeyVar(ast::KeyVar::Time) => write!(f, "t"),
+            &instr::ExprKind::KeyVar(ast::KeyVar::MouseX) => write!(f, "mx"),
+            &instr::ExprKind::KeyVar(ast::KeyVar::MouseY) => write!(f, "my"),
             &instr::ExprKind::Literal(ref s) => write!(f, "{}", s),
             &instr::ExprKind::Bool(ref b) => write!(f, "{}", b),
             &instr::ExprKind::Var(ref s) => write!(f, "{}", s),

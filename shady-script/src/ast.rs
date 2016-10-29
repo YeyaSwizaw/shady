@@ -43,7 +43,9 @@ pub enum Expr {
 pub enum KeyVar {
     XPos,
     YPos,
-    Time
+    Time,
+    MouseX,
+    MouseY
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]

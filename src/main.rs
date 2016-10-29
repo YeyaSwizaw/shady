@@ -9,11 +9,11 @@ use std::fs::File;
 use std::path::Path;
 use std::io::Read;
 use std::sync::mpsc::channel;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use glium::{Program, VertexBuffer, DisplayBuild, Surface};
 use glium::backend::glutin_backend::GlutinFacade;
-use glium::uniforms::EmptyUniforms;
+use glium::uniforms::{EmptyUniforms, Uniforms};
 
 use clap::{App, Arg};
 
@@ -58,6 +58,7 @@ struct ImageDisplay {
     buffer: VertexBuffer<Vertex>,
     program: Program,
     uniforms: Vec<Uniform>,
+    mouse_position: (f32, f32),
     done: bool
 }
 
@@ -114,6 +115,7 @@ fn load_images<'a, P: AsRef<Path>>(buffer: &'a mut String, displays: &mut Vec<Im
                     buffer: vertex_buffer,
                     program: program,
                     uniforms: image.standalone_uniforms(),
+                    mouse_position: (0.0, 0.0),
                     done: false
                 })
             }
@@ -184,26 +186,52 @@ fn main() {
         let duration = time.elapsed().subsec_nanos() as f32 / 1000000000.0;
 
         for display in &mut displays {
-            let mut done = false;
+            let size = display.display.get_window().unwrap().get_inner_size_pixels().unwrap();
 
             for event in display.display.poll_events() {
                 match event {
-                    glium::glutin::Event::Closed => done = true,
+                    glium::glutin::Event::Closed => display.done = true,
+                    glium::glutin::Event::MouseMoved(x, y) => display.mouse_position = (x as f32 / size.0 as f32, y as f32 / size.1 as f32),
                     _ => ()
                 }
             }
 
-            display.done = done;
-
             let mut target = display.display.draw();
             target.clear_color(1.0, 0.0, 0.0, 0.0);
 
-            match display.uniforms.as_slice() {
-                &[Uniform::Time] => {
-                    target.draw(&display.buffer, &indices, &display.program, &uniform! { time: duration }, &Default::default()).unwrap();
-                },
+            macro_rules! render {
+                ($uniforms:expr) => (target.draw(&display.buffer, &indices, &display.program, &$uniforms, &Default::default()).unwrap())
+            };
 
-                _ => target.draw(&display.buffer, &indices, &display.program, &EmptyUniforms, &Default::default()).unwrap()
+            match display.uniforms.as_slice() {
+                &[] => render!(EmptyUniforms),
+
+                &[Uniform::Time] => render!(uniform! {
+                    time: duration
+                }),
+
+                &[Uniform::Time, Uniform::MouseX] => render!(uniform! {
+                    time: duration,
+                    mouse_x: display.mouse_position.0,
+                }),
+
+                &[Uniform::Time, Uniform::MouseY] => render!(uniform! {
+                    time: duration,
+                    mouse_y: display.mouse_position.1,
+                }),
+
+                &[Uniform::MouseX, Uniform::MouseY] => render!(uniform! {
+                    mouse_x: display.mouse_position.0,
+                    mouse_y: display.mouse_position.1,
+                }),
+
+                &[Uniform::Time, Uniform::MouseX, Uniform::MouseY] => render!(uniform! {
+                    time: duration,
+                    mouse_x: display.mouse_position.0,
+                    mouse_y: display.mouse_position.1,
+                }),
+
+                _ => panic!("Unexpected uniform format - this shouldn't happen")
             };
 
             target.finish().unwrap();

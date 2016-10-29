@@ -44,6 +44,8 @@ ExprTerm: ast::Expr = {
     "x" => ast::Expr::KeyVar(ast::KeyVar::XPos),
     "y" => ast::Expr::KeyVar(ast::KeyVar::YPos),
     "t" => ast::Expr::KeyVar(ast::KeyVar::Time),
+    "mx" => ast::Expr::KeyVar(ast::KeyVar::MouseX),
+    "my" => ast::Expr::KeyVar(ast::KeyVar::MouseY),
     Name => ast::var(<>),
     r"[0-9]+(\.[0-9]+)?" => ast::lit(<>),
     "(" <Expr> ")",
