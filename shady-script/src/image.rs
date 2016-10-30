@@ -128,7 +128,7 @@ impl fmt::Display for instr::Instr {
             },
             &instr::Instr::Assignment(ref name, ref expr) => write!(f, "{} = {}", name, expr.expr),
             &instr::Instr::Return(ref expr) => write!(f, "return {}", expr.expr),
-            &instr::Instr::ITE(ref expr, ref block, None) => write!(f, "if {} {{\n{}}}", expr, block),
+            &instr::Instr::ITE(ref expr, ref block, None) => write!(f, "if({}) {{\n{}}}", expr, block),
             &instr::Instr::ITE(ref expr, ref tblock, Some(ref eblock)) => write!(f, "if({}) {{\n{}}} else {{\n{}}}", expr, tblock, eblock),
         }
     }

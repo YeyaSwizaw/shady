@@ -22,6 +22,8 @@ functions! {
     sin(Float) -> Float;
     cos(Float) -> Float;
     tan(Float) -> Float;
+    min(Float, Float) -> Float;
+    max(Float, Float) -> Float;
 }
 
 pub fn find_function(name: &str, args: &[Type]) -> Option<Type> {
