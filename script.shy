@@ -4,8 +4,3 @@ image {
     (1 - xp / yp, 2.0 + xp / yp, t)
 }
 
-image {
-    xp = (x - mx) * (x - 0.5);
-    yp = (y - my) * (y - my);
-    (1 - xp / yp, 2.0 + xp / yp, t)
-}

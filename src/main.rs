@@ -4,6 +4,10 @@
 extern crate clap;
 extern crate notify;
 extern crate shady_script;
+extern crate imagefmt;
+
+#[cfg(target_os="macos")]
+#[macro_use] extern crate objc;
 
 use std::fs::File;
 use std::path::Path;
@@ -12,6 +16,7 @@ use std::sync::mpsc::channel;
 use std::time::Instant;
 
 use glium::{Program, VertexBuffer, DisplayBuild, Surface};
+use glium::texture::texture2d::Texture2d;
 use glium::backend::glutin_backend::GlutinFacade;
 use glium::uniforms::{EmptyUniforms, Uniforms};
 
@@ -20,6 +25,9 @@ use clap::{App, Arg};
 use notify::{RecommendedWatcher, Watcher};
 
 use shady_script::{ParseError, AnalyseError, Uniform};
+use platform::{init_platform_window, platform_drag};
+
+mod platform;
 
 #[derive(Copy, Clone)]
 struct Vertex {
@@ -58,8 +66,8 @@ struct ImageDisplay {
     buffer: VertexBuffer<Vertex>,
     program: Program,
     uniforms: Vec<Uniform>,
-    mouse_position: (f32, f32),
-    done: bool
+    mouse_position: (i32, i32),
+    done: bool,
 }
 
 #[derive(Debug)]
@@ -110,13 +118,15 @@ fn load_images<'a, P: AsRef<Path>>(buffer: &'a mut String, displays: &mut Vec<Im
                 let vertex_buffer = glium::VertexBuffer::new(&display, &shape).unwrap();
                 let program = Program::from_source(&display, vertex_shader_source, &shader, None).unwrap();
 
+                init_platform_window(&display);
+
                 Some(ImageDisplay {
                     display: display,
                     buffer: vertex_buffer,
                     program: program,
                     uniforms: image.standalone_uniforms(),
-                    mouse_position: (0.0, 0.0),
-                    done: false
+                    mouse_position: (0, 0),
+                    done: false,
                 })
             }
         };
@@ -154,8 +164,6 @@ fn main() {
 
     let mut buffer = String::new();
 
-    let indices = glium::index::NoIndices(glium::index::PrimitiveType::TriangleFan);
-
     let mut displays = Vec::new();
     if let Err(err) = load_images(&mut buffer, &mut displays, path) {
         println!("{:?}", err);
@@ -188,53 +196,49 @@ fn main() {
         for display in &mut displays {
             let size = display.display.get_window().unwrap().get_inner_size_pixels().unwrap();
 
+            let mut drag = false;
+
             for event in display.display.poll_events() {
                 match event {
                     glium::glutin::Event::Closed => display.done = true,
-                    glium::glutin::Event::MouseMoved(x, y) => display.mouse_position = (x as f32 / size.0 as f32, y as f32 / size.1 as f32),
+                    glium::glutin::Event::MouseMoved(x, y) => display.mouse_position = (x, y),
+                    glium::glutin::Event::MouseInput(glium::glutin::ElementState::Pressed, glium::glutin::MouseButton::Left) => drag = true,
                     _ => ()
                 }
             }
 
+            if drag {
+                let tex = Texture2d::empty(&display.display, size.0, size.1).unwrap();
+                {
+                    let mut target = tex.as_surface();
+                    render(
+                        &mut target, 
+                        &display.program, 
+                        &display.buffer, 
+                        &display.uniforms, 
+                        duration, 
+                        display.mouse_position.0 as f32 / size.0 as f32, 
+                        display.mouse_position.1 as f32 / size.1 as f32
+                    );
+                }
+
+                platform_drag(&tex, display.mouse_position);
+            }
+
             let mut target = display.display.draw();
-            target.clear_color(1.0, 0.0, 0.0, 0.0);
 
-            macro_rules! render {
-                ($uniforms:expr) => (target.draw(&display.buffer, &indices, &display.program, &$uniforms, &Default::default()).unwrap())
-            };
-
-            match display.uniforms.as_slice() {
-                &[] => render!(EmptyUniforms),
-
-                &[Uniform::Time] => render!(uniform! {
-                    time: duration
-                }),
-
-                &[Uniform::Time, Uniform::MouseX] => render!(uniform! {
-                    time: duration,
-                    mouse_x: display.mouse_position.0,
-                }),
-
-                &[Uniform::Time, Uniform::MouseY] => render!(uniform! {
-                    time: duration,
-                    mouse_y: display.mouse_position.1,
-                }),
-
-                &[Uniform::MouseX, Uniform::MouseY] => render!(uniform! {
-                    mouse_x: display.mouse_position.0,
-                    mouse_y: display.mouse_position.1,
-                }),
-
-                &[Uniform::Time, Uniform::MouseX, Uniform::MouseY] => render!(uniform! {
-                    time: duration,
-                    mouse_x: display.mouse_position.0,
-                    mouse_y: display.mouse_position.1,
-                }),
-
-                _ => panic!("Unexpected uniform format - this shouldn't happen")
-            };
+            render(
+                &mut target, 
+                &display.program, 
+                &display.buffer, 
+                &display.uniforms, 
+                duration, 
+                display.mouse_position.0 as f32 / size.0 as f32, 
+                display.mouse_position.1 as f32 / size.1 as f32
+            );
 
             target.finish().unwrap();
+
         }
 
         displays.retain(|display| !display.done);
@@ -242,4 +246,49 @@ fn main() {
             break
         }
     }
+}
+
+fn render<S: Surface>(surface: &mut S, program: &Program, buffer: &VertexBuffer<Vertex>, uniforms: &[Uniform], time: f32, mx: f32, my: f32) {
+    surface.clear_color(0.0, 0.0, 0.0, 0.0);
+
+    macro_rules! render {
+        ($uniforms:expr) => (surface.draw(
+            buffer, 
+            &glium::index::NoIndices(glium::index::PrimitiveType::TriangleFan), 
+            program, 
+            &$uniforms, 
+            &Default::default()
+        ).unwrap())
+    };
+
+    match uniforms {
+        &[] => render!(EmptyUniforms),
+
+        &[Uniform::Time] => render!(uniform! {
+            time: time
+        }),
+
+        &[Uniform::Time, Uniform::MouseX] => render!(uniform! {
+            time: time,
+            mouse_x: mx
+        }),
+
+        &[Uniform::Time, Uniform::MouseY] => render!(uniform! {
+            time: time,
+            mouse_y: my
+        }),
+
+        &[Uniform::MouseX, Uniform::MouseY] => render!(uniform! {
+            mouse_x: mx,
+            mouse_y: my
+        }),
+
+        &[Uniform::Time, Uniform::MouseX, Uniform::MouseY] => render!(uniform! {
+            time: time,
+            mouse_x: mx,
+            mouse_y: my,
+        }),
+
+        _ => panic!("Unexpected uniform format - this shouldn't happen")
+    };
 }

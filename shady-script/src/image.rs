@@ -49,13 +49,13 @@ impl<'a> Image<'a> {
 
 in vec2 uv;
 
-out vec3 colour;
+out vec4 colour;
 
 {}
 {}
 
 void main() {{
-    colour = image({});
+    colour = vec4(image({}), 1);
 }}"#, 
             uniform_buffer, 
             self.0.get(self.1).shader_function(&self.standalone_uniforms()),
