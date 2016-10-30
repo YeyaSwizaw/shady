@@ -6,6 +6,12 @@ extern crate notify;
 extern crate shady_script;
 extern crate imagefmt;
 
+#[cfg(target_os="macos")]
+extern crate cocoa;
+
+#[cfg(target_os="macos")]
+#[macro_use] extern crate objc;
+
 use std::fs::File;
 use std::path::Path;
 use std::io::Read;
@@ -25,6 +31,10 @@ use clap::{App, Arg};
 use notify::{RecommendedWatcher, Watcher};
 
 use shady_script::{ParseError, AnalyseError, Uniform};
+
+use platform::save_image;
+
+mod platform;
 
 #[derive(Copy, Clone)]
 struct Vertex {
@@ -174,8 +184,6 @@ fn main() {
     };
 
     let mut time = Instant::now();
-    let mut saves = 0;
-
     loop {
         if let Some((ref rx, _)) = watcher {
             if let Ok(_) = rx.try_recv() {
@@ -209,9 +217,8 @@ fn main() {
             }
 
             if save {
-                let tex = Texture2d::empty(&display.display, size.0, size.1).unwrap();
-
-                {
+                save_image(|path| {
+                    let tex = Texture2d::empty(&display.display, size.0, size.1).unwrap();
                     let mut target = tex.as_surface();
                     render(
                         &mut target, 
@@ -222,13 +229,11 @@ fn main() {
                         display.mouse_position.0 as f32 / size.0 as f32, 
                         display.mouse_position.1 as f32 / size.1 as f32
                     );
-                }
 
-                let raw: RawImage2d<u8> = tex.read();
-                let mut file = File::create(format!("save{}.png", saves)).unwrap();
-                png::write(&mut file, raw.width as usize, raw.height as usize, ColFmt::RGBA, &raw.data, ColType::Auto, None).unwrap();
-
-                saves += 1;
+                    let raw: RawImage2d<u8> = tex.read();
+                    let mut file = File::create(path).unwrap();
+                    png::write(&mut file, raw.width as usize, raw.height as usize, ColFmt::RGBA, &raw.data, ColType::Auto, None).unwrap();
+                });
             }
 
             let mut target = display.display.draw();

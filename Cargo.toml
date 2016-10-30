@@ -5,9 +5,11 @@ version = "0.1.0"
 
 [dependencies]
 clap = "2.10.4"
+cocoa = "0.5.0"
 glium = "0.15.0"
 imagefmt = "4.0.0"
 notify = "2.6.3"
+objc = "0.2.1"
 shady-script = { path = "shady-script" }
 
 [workspace]
