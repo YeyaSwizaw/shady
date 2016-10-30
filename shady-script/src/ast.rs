@@ -33,6 +33,7 @@ pub enum Expr {
     Literal(String),
     Bool(bool),
     Var(String),
+    App(String, Vec<Spanned<Expr>>),
     Vec2(Box<(Spanned<Expr>, Spanned<Expr>)>),
     Vec3(Box<(Spanned<Expr>, Spanned<Expr>, Spanned<Expr>)>),
     BinOp(OpKind, Box<(Spanned<Expr>, Spanned<Expr>)>),
@@ -102,6 +103,10 @@ pub fn lit<S: Into<String>>(s: S) -> Expr {
 
 pub fn var<S: Into<String>>(s: S) -> Expr {
     Expr::Var(s.into())
+}
+
+pub fn app<S: Into<String>>(s: S, exprs: Vec<Spanned<Expr>>) -> Expr {
+    Expr::App(s.into(), exprs)
 }
 
 pub fn vec2(a: Spanned<Expr>, b: Spanned<Expr>) -> Expr {

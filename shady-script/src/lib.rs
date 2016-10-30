@@ -15,6 +15,7 @@ mod analyse;
 mod instr;
 mod grammar;
 mod image;
+pub mod functions;
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Shady {

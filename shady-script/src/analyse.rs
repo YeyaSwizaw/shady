@@ -1,6 +1,7 @@
 use ast;
 use instr;
 use span::{Span, Spanned};
+use functions::find_function;
 
 use std::collections::{HashMap, BTreeSet};
 
@@ -13,7 +14,8 @@ pub enum AnalyseError {
     UndefinedName(Span),
     ExpectedReturn(Span),
     ExpectedBoolean(Span),
-    ExpectedVoidExprStmt(Span)
+    ExpectedVoidExprStmt(Span),
+    InvalidApplication(Span),
 }
 
 struct Env {
@@ -209,6 +211,26 @@ fn analyse_expr(env: &mut Env, expr: &Spanned<ast::Expr>) -> Result<instr::Expr,
                 ty: ty,
                 expr: instr::ExprKind::Var(name.clone())
             }),
+
+        ast::Expr::App(ref name, ref exprs) => {
+            let mut tys = Vec::new();
+            let mut es = Vec::new();
+
+            for expr in exprs {
+                let e = try!(analyse_expr(env, &expr));
+                tys.push(e.ty);
+                es.push(e.expr);
+            }
+
+            if let Some(ty) = find_function(name, &tys) {
+                Ok(instr::Expr {
+                    ty: ty,
+                    expr: instr::ExprKind::Application(name.clone(), es)
+                })
+            } else {
+                Err(AnalyseError::InvalidApplication(expr.span))
+            }
+        },
 
         ast::Expr::Vec2(ref exprs) => {
             let e1 = try!(analyse_expr(env, &exprs.0));

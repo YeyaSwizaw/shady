@@ -15,7 +15,7 @@ pub fn save_image<F: FnMut(&Path)>(mut f: F) {
         let _: () = msg_send![savepanel, setAllowedFileTypes:NSArray::arrayWithObject(0 as id, filetype)];
 
         let result: NSUInteger = msg_send![savepanel, runModal];
-        if result == 1 {
+        if result == 1 { // ok
             let filename: id = msg_send![savepanel, filename];
             let path = CStr::from_ptr(filename.UTF8String()).to_string_lossy().into_owned();
             f(&Path::new(&path));

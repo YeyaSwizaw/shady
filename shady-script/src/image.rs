@@ -65,6 +65,7 @@ void main() {{
 }
 
 struct InstrVec<'a>(&'a Vec<instr::Instr>);
+struct ExprVec<'a>(&'a Vec<instr::ExprKind>);
 
 impl instr::Item {
     fn shader_function(&self, uniforms: &[Uniform]) -> String {
@@ -95,6 +96,22 @@ impl<'a> fmt::Display for InstrVec<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         for inst in self.0 {
             try!(write!(f, "    {};\n", inst))
+        }
+
+        Ok(())
+    }
+}
+
+impl<'a> fmt::Display for ExprVec<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        let mut first = true;
+        for expr in self.0 { 
+            if first {
+                try!(write!(f, "{}", expr));
+                first = false;
+            } else {
+                try!(write!(f, ", {}", expr));
+            }
         }
 
         Ok(())
@@ -140,6 +157,7 @@ impl fmt::Display for instr::ExprKind {
             &instr::ExprKind::Literal(ref s) => write!(f, "{}", s),
             &instr::ExprKind::Bool(ref b) => write!(f, "{}", b),
             &instr::ExprKind::Var(ref s) => write!(f, "{}", s),
+            &instr::ExprKind::Application(ref name, ref exprs) => write!(f, "{}({})", name, ExprVec(exprs)),
             &instr::ExprKind::Vec2(ref exprs) => write!(f, "vec2({}, {})", exprs.0, exprs.1),
             &instr::ExprKind::Vec3(ref exprs) => write!(f, "vec3({}, {}, {})", exprs.0, exprs.1, exprs.2),
             &instr::ExprKind::BinOp(ast::OpKind::ArithOp(ast::ArithOpKind::Add), ref exprs) => write!(f, "{} + {}", exprs.0, exprs.1),

@@ -35,6 +35,7 @@ pub enum ExprKind {
     Literal(String),
     Bool(bool),
     Var(String),
+    Application(String, Vec<ExprKind>),
     Vec2(Box<(ExprKind, ExprKind)>),
     Vec3(Box<(ExprKind, ExprKind, ExprKind)>),
     BinOp(ast::OpKind, Box<(ExprKind, ExprKind)>),

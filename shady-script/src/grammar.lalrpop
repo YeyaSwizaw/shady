@@ -46,6 +46,7 @@ ExprTerm: ast::Expr = {
     "t" => ast::Expr::KeyVar(ast::KeyVar::Time),
     "mx" => ast::Expr::KeyVar(ast::KeyVar::MouseX),
     "my" => ast::Expr::KeyVar(ast::KeyVar::MouseY),
+    <Name> "(" <ExprList> ")" => ast::app(<>),
     Name => ast::var(<>),
     r"[0-9]+(\.[0-9]+)?" => ast::lit(<>),
     "(" <Expr> ")",
@@ -54,6 +55,17 @@ ExprTerm: ast::Expr = {
 
 ExprStmt: ast::ExprStmt = {
     "if" <Spanned<Expr>> <Spanned<Block>> <("else" <Spanned<Block>>)?> => ast::ite(<>),
+};
+
+ExprList: Vec<span::Spanned<ast::Expr>> = {
+    <v: (<Spanned<Expr>> ",")*> <e: Spanned<Expr>?> => match e {
+        None => v,
+        Some(e) => {
+            let mut v = v;
+            v.push(e);
+            v
+        }
+    }
 };
 
 Name = r"[a-zA-Z][a-zA-Z0-9]*";
