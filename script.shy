@@ -4,3 +4,6 @@ image {
     (1 - xp / yp, 2.0 + xp / yp, t)
 }
 
+image {
+    (mx, 0, 0)
+}

@@ -1,4 +1,4 @@
-#![feature(slice_patterns)]
+#![feature(type_ascription, slice_patterns)]
 
 #[macro_use] extern crate glium;
 extern crate clap;
@@ -6,28 +6,25 @@ extern crate notify;
 extern crate shady_script;
 extern crate imagefmt;
 
-#[cfg(target_os="macos")]
-#[macro_use] extern crate objc;
-
 use std::fs::File;
 use std::path::Path;
 use std::io::Read;
 use std::sync::mpsc::channel;
 use std::time::Instant;
 
+use imagefmt::{ColType, ColFmt, png};
+
 use glium::{Program, VertexBuffer, DisplayBuild, Surface};
+use glium::texture::RawImage2d;
 use glium::texture::texture2d::Texture2d;
 use glium::backend::glutin_backend::GlutinFacade;
-use glium::uniforms::{EmptyUniforms, Uniforms};
+use glium::uniforms::EmptyUniforms;
 
 use clap::{App, Arg};
 
 use notify::{RecommendedWatcher, Watcher};
 
 use shady_script::{ParseError, AnalyseError, Uniform};
-use platform::{init_platform_window, platform_drag};
-
-mod platform;
 
 #[derive(Copy, Clone)]
 struct Vertex {
@@ -118,8 +115,6 @@ fn load_images<'a, P: AsRef<Path>>(buffer: &'a mut String, displays: &mut Vec<Im
                 let vertex_buffer = glium::VertexBuffer::new(&display, &shape).unwrap();
                 let program = Program::from_source(&display, vertex_shader_source, &shader, None).unwrap();
 
-                init_platform_window(&display);
-
                 Some(ImageDisplay {
                     display: display,
                     buffer: vertex_buffer,
@@ -179,6 +174,7 @@ fn main() {
     };
 
     let mut time = Instant::now();
+    let mut saves = 0;
 
     loop {
         if let Some((ref rx, _)) = watcher {
@@ -196,19 +192,25 @@ fn main() {
         for display in &mut displays {
             let size = display.display.get_window().unwrap().get_inner_size_pixels().unwrap();
 
-            let mut drag = false;
+            let mut save = false;
 
             for event in display.display.poll_events() {
                 match event {
                     glium::glutin::Event::Closed => display.done = true,
                     glium::glutin::Event::MouseMoved(x, y) => display.mouse_position = (x, y),
-                    glium::glutin::Event::MouseInput(glium::glutin::ElementState::Pressed, glium::glutin::MouseButton::Left) => drag = true,
+
+                    glium::glutin::Event::MouseInput(glium::glutin::ElementState::Pressed, glium::glutin::MouseButton::Left) => 
+                        if display.mouse_position.0 > 0 && display.mouse_position.1 > 0 && display.mouse_position.0 < size.0 as i32 && display.mouse_position.1 < size.1 as i32 {
+                            save = true
+                        },
+                        
                     _ => ()
                 }
             }
 
-            if drag {
+            if save {
                 let tex = Texture2d::empty(&display.display, size.0, size.1).unwrap();
+
                 {
                     let mut target = tex.as_surface();
                     render(
@@ -222,7 +224,11 @@ fn main() {
                     );
                 }
 
-                platform_drag(&tex, display.mouse_position);
+                let raw: RawImage2d<u8> = tex.read();
+                let mut file = File::create(format!("save{}.png", saves)).unwrap();
+                png::write(&mut file, raw.width as usize, raw.height as usize, ColFmt::RGBA, &raw.data, ColType::Auto, None).unwrap();
+
+                saves += 1;
             }
 
             let mut target = display.display.draw();
@@ -266,6 +272,14 @@ fn render<S: Surface>(surface: &mut S, program: &Program, buffer: &VertexBuffer<
 
         &[Uniform::Time] => render!(uniform! {
             time: time
+        }),
+
+        &[Uniform::MouseX] => render!(uniform! {
+            mouse_x: mx
+        }),
+
+        &[Uniform::MouseY] => render!(uniform! {
+            mouse_y: my
         }),
 
         &[Uniform::Time, Uniform::MouseX] => render!(uniform! {
