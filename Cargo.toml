@@ -1,14 +1,14 @@
 [package]
 authors = ["Samuel Sleight <samuel.sleight@gmail.com>"]
 name = "shady"
-version = "0.1.0"
+version = "0.1.1"
 
 [dependencies]
 clap = "2.10.4"
-cocoa = "0.5.0"
-glium = "0.15.0"
+cocoa = "0.11.0"
+glium = "0.18.0"
 imagefmt = "4.0.0"
-notify = "2.6.3"
+notify = "4.0.1"
 objc = "0.2.1"
 shady-script = { path = "shady-script" }
 

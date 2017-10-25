@@ -20,19 +20,18 @@ use std::time::Instant;
 
 use imagefmt::{ColType, ColFmt, png};
 
-use glium::{Program, VertexBuffer, DisplayBuild, Surface};
+use glium::{Program, VertexBuffer, Surface};
+use glium::glutin::{WindowId, EventsLoop, Event, WindowEvent};
 use glium::texture::RawImage2d;
 use glium::texture::texture2d::Texture2d;
-use glium::backend::glutin_backend::GlutinFacade;
+use glium::backend::glutin::Display;
 use glium::uniforms::EmptyUniforms;
 
 use clap::{App, Arg};
 
-use notify::{RecommendedWatcher, Watcher};
+use notify::{RecommendedWatcher, Watcher, RecursiveMode};
 
 use shady_script::{ParseError, AnalyseError, Uniform};
-
-use platform::save_image;
 
 mod platform;
 
@@ -69,7 +68,8 @@ static shape: [Vertex; 4] = [
 ];
 
 struct ImageDisplay {
-    display: GlutinFacade,
+    display: Display,
+    id: WindowId,
     buffer: VertexBuffer<Vertex>,
     program: Program,
     uniforms: Vec<Uniform>,
@@ -84,7 +84,7 @@ enum Error<'a> {
     Analyse(AnalyseError),
 }
 
-fn load_images<'a, P: AsRef<Path>>(buffer: &'a mut String, displays: &mut Vec<ImageDisplay>, path: P) -> Result<(), Error<'a>> {
+fn load_images<'a, P: AsRef<Path>>(buffer: &'a mut String, event_loop: &EventsLoop, displays: &mut Vec<ImageDisplay>, path: P) -> Result<(), Error<'a>> {
     buffer.clear();
 
     let mut idx = 0usize;
@@ -109,24 +109,22 @@ fn load_images<'a, P: AsRef<Path>>(buffer: &'a mut String, displays: &mut Vec<Im
 
         let new_display = match displays.get_mut(idx) {
             Some(mut display) => {
-                display.display.get_window().unwrap().set_title(&format!("Shady Image {}", idx));
+                display.display.gl_window().window().set_title(&format!("Shady Image {}", idx));
                 display.program = Program::from_source(&display.display, vertex_shader_source, &shader, None).unwrap();
                 display.uniforms = image.standalone_uniforms();
                 None
             }
 
             None => {
-                let display = glium::glutin::WindowBuilder::new()
-                    .with_title(format!("Shady Image {}", idx))
-                    .with_dimensions(500, 500)
-                    .build_glium()
-                    .unwrap();
-
+                let display = platform::open_window(event_loop, &format!("Shady Image {}", idx), (500, 500));
                 let vertex_buffer = glium::VertexBuffer::new(&display, &shape).unwrap();
                 let program = Program::from_source(&display, vertex_shader_source, &shader, None).unwrap();
 
+                let id = display.gl_window().window().id();
+
                 Some(ImageDisplay {
                     display: display,
+                    id: id,
                     buffer: vertex_buffer,
                     program: program,
                     uniforms: image.standalone_uniforms(),
@@ -144,6 +142,15 @@ fn load_images<'a, P: AsRef<Path>>(buffer: &'a mut String, displays: &mut Vec<Im
     });
 
     Ok(())
+}
+
+fn with_display<F: FnMut(&mut ImageDisplay)>(displays: &mut [ImageDisplay], id: WindowId, mut f: F) {
+    for display in displays {
+        if display.id == id {
+            f(display);
+            return
+        }
+    }
 }
 
 fn main() {
@@ -168,9 +175,10 @@ fn main() {
     let keep = !once && matches.is_present("keep");
 
     let mut buffer = String::new();
-
     let mut displays = Vec::new();
-    if let Err(err) = load_images(&mut buffer, &mut displays, path) {
+    let mut event_loop = EventsLoop::new();
+
+    if let Err(err) = load_images(&mut buffer, &event_loop, &mut displays, path) {
         println!("{:?}", err);
     }
 
@@ -178,8 +186,8 @@ fn main() {
         None
     } else {
         let (tx, rx) = channel();
-        let mut watcher: RecommendedWatcher = Watcher::new(tx).unwrap();
-        watcher.watch(path).unwrap();
+        let mut watcher: RecommendedWatcher = Watcher::new_raw(tx).unwrap();
+        watcher.watch(path, RecursiveMode::Recursive).unwrap();
         Some((rx, watcher))
     };
 
@@ -189,7 +197,7 @@ fn main() {
             if let Ok(_) = rx.try_recv() {
                 time = Instant::now();
 
-                if let Err(err) = load_images(&mut buffer, &mut displays, path) {
+                if let Err(err) = load_images(&mut buffer, &event_loop, &mut displays, path) {
                     println!("{:?}", err);
                 }
             };
@@ -197,27 +205,21 @@ fn main() {
 
         let duration = time.elapsed().subsec_nanos() as f32 / 1000000000.0;
 
-        for display in &mut displays {
-            let size = display.display.get_window().unwrap().get_inner_size_pixels().unwrap();
+        event_loop.poll_events(|event| {
+            if let Event::WindowEvent { event: e, window_id: id } = event {
+                match e {
+                    WindowEvent::Closed => with_display(&mut displays, id, |display| display.done = true),
+                    WindowEvent::MouseMoved { position, .. } => with_display(&mut displays, id, |display| display.mouse_position = (position.0 as i32, position.1 as i32)),
 
-            let mut save = false;
-
-            for event in display.display.poll_events() {
-                match event {
-                    glium::glutin::Event::Closed => display.done = true,
-                    glium::glutin::Event::MouseMoved(x, y) => display.mouse_position = (x, y),
-
-                    glium::glutin::Event::MouseInput(glium::glutin::ElementState::Pressed, glium::glutin::MouseButton::Left) => 
-                        if display.mouse_position.0 > 0 && display.mouse_position.1 > 0 && display.mouse_position.0 < size.0 as i32 && display.mouse_position.1 < size.1 as i32 {
-                            save = true
-                        },
-                        
                     _ => ()
                 }
             }
+        });
 
+        for display in &mut displays {
+            /*
             if save {
-                save_image(|path| {
+                platform::save_image(|path| {
                     let tex = Texture2d::empty(&display.display, size.0, size.1).unwrap();
                     let mut target = tex.as_surface();
                     render(
@@ -235,7 +237,9 @@ fn main() {
                     png::write(&mut file, raw.width as usize, raw.height as usize, ColFmt::RGBA, &raw.data, ColType::Auto, None).unwrap();
                 });
             }
+            */
 
+            let size = display.display.gl_window().window().get_inner_size_pixels().unwrap();
             let mut target = display.display.draw();
 
             render(
